@@ -31,8 +31,8 @@ public class TinyRenderer extends JPanel {
         }
         int dx = x1-x0;
         int dy = y1-y0;
-        double derror = Math.abs(dy/(double)dx);
-        double error = 0;
+        int derror2 = 2*Math.abs(dy);
+        int error2 = 0;
         int y = y0;
         for (int x=x0; x<x1; x++) {
             if (steep) {
@@ -40,10 +40,10 @@ public class TinyRenderer extends JPanel {
             } else {
                 image.setRGB(x, y, color);
             }
-            error += derror;
-            if (error>.5) {
+            error2 += derror2;
+            if (error2>dx) {
                 y += (y1>y0?1:-1);
-                error -= 1.;
+                error2 -= 2*dx;
             }
         }
     }
