@@ -29,14 +29,21 @@ public class TinyRenderer extends JPanel {
             y0 = y1;
             y1 = tmp2;
         }
-
+        int dx = x1-x0;
+        int dy = y1-y0;
+        double derror = Math.abs(dy/(double)dx);
+        double error = 0;
+        int y = y0;
         for (int x=x0; x<x1; x++) {
-            double t = (x-x0)/(double)(x1-x0);
-            int y = (int)(y0*(1.-t) + y1*t);
             if (steep) {
                 image.setRGB(y, x, color);
             } else {
                 image.setRGB(x, y, color);
+            }
+            error += derror;
+            if (error>.5) {
+                y += (y1>y0?1:-1);
+                error -= 1.;
             }
         }
     }
