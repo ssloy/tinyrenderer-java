@@ -72,9 +72,9 @@ public class TinyRenderer extends JPanel {
                 double x1 = vertices[triangles[t*3+(e+1)%3]*3+0];
                 double y1 = vertices[triangles[t*3+(e+1)%3]*3+1];
                 
-				// The points live in [-1,1]^3. 
-				// If we want to map an x from [-1,1] to [0,width], then (x+1)/2 belongs to in [0,1]. 
-				// And then width*(x+1)/2 lives in the [0,width] range. +.5 is added for rounding and not truncation.
+                // The points live in [-1,1]^3. 
+                // If we want to map an x from [-1,1] to [0,width], then (x+1)/2 belongs to in [0,1]. 
+                // And then width*(x+1)/2 lives in the [0,width] range. +.5 is added for rounding and not truncation.
                 int ix0 = (int)(width*(x0+1.)/2.+.5);
                 int ix1 = (int)(width*(x1+1.)/2.+.5);
                 int iy0 = (int)(height*(1.-y0)/2.+.5);
@@ -90,8 +90,8 @@ public class TinyRenderer extends JPanel {
     }
 
     public static void main(String[] args) throws FileNotFoundException, IOException {
-		// crude WaveFront .obj file parsing: the goal is to fill vertices[] and triangles[] arrays.
-		// TODO: create a proper class for the job
+        // crude WaveFront .obj file parsing: the goal is to fill vertices[] and triangles[] arrays.
+        // TODO: create a proper class for the job
         File objFile = new File("obj/african_head/african_head.obj");
         FileReader fileReader = new FileReader(objFile);
         BufferedReader bufferedReader = new BufferedReader(fileReader);
