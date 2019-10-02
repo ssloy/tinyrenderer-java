@@ -11,8 +11,6 @@ import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
-import geometry.Matrix;
-
 public class TinyRenderer extends JPanel {
     public static final int width = 800;
     public static final int height = 800;
@@ -21,10 +19,56 @@ public class TinyRenderer extends JPanel {
     public static int triangles[] = null;           // Collection of triangles. The size equals to the number of triangles*3. Each triplet references indices in the vertices[] array.
     public static BufferedImage framebuffer = null; // this image contains the rendered scene
 
+    // compute the matrix product A*B
+    public static double[][] matrix_multiply(double[][] A, double[][] B) {
+        if (A.length==0 || A[0].length != B.length)
+            throw new IllegalStateException("invalid dimensions");
+
+        double[][] matrix = new double[A.length][B[0].length];
+        for (int i=0; i<A.length; i++) {
+            for (int j=0; j<B[0].length; j++) {
+                double sum = 0;
+                for (int k=0; k<A[i].length; k++)
+                    sum += A[i][k]*B[k][j];
+                matrix[i][j] = sum;
+            }
+        }
+        return matrix;
+    }
+
+    // transpose the matrix
+    public static double[][] matrix_transpose(double[][] matrix) {
+        double[][] transpose = new double[matrix[0].length][matrix.length];
+
+        for (int i = 0; i < matrix.length; i++)
+            for (int j = 0; j < matrix[i].length; j++)
+                transpose[j][i] = matrix[i][j];
+        return transpose;
+    }
+
+    // invert the matrix; N.B. it works for 3x3 matrices only!
+    public static double[][] matrix_inverse(double[][] m) {
+        if (m[0].length != m.length || m.length != 3)
+            throw new IllegalStateException("invalid dimensions");
+        double[][] inverse = new double[m.length][m.length];
+        double invdet = 1. / (m[0][0]*(m[1][1]*m[2][2] - m[2][1]*m[1][2]) - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0]) + m[0][2]*(m[1][0]*m[2][1] - m[1][1]*m[2][0]));
+        inverse[0][0] = (m[1][1]*m[2][2] - m[2][1]*m[1][2])*invdet;
+        inverse[0][1] = (m[0][2]*m[2][1] - m[0][1]*m[2][2])*invdet;
+        inverse[0][2] = (m[0][1]*m[1][2] - m[0][2]*m[1][1])*invdet;
+        inverse[1][0] = (m[1][2]*m[2][0] - m[1][0]*m[2][2])*invdet;
+        inverse[1][1] = (m[0][0]*m[2][2] - m[0][2]*m[2][0])*invdet;
+        inverse[1][2] = (m[1][0]*m[0][2] - m[0][0]*m[1][2])*invdet;
+        inverse[2][0] = (m[1][0]*m[2][1] - m[2][0]*m[1][1])*invdet;
+        inverse[2][1] = (m[2][0]*m[0][1] - m[0][0]*m[2][1])*invdet;
+        inverse[2][2] = (m[0][0]*m[1][1] - m[1][0]*m[0][1])*invdet;
+        return inverse;
+    }
+
+    // verify if the point (x,y) lies inside the triangle [(x0,y0), (x1,y1), (x2,y2)]
     public static boolean in_triangle(int x0, int y0, int x1, int y1, int x2, int y2, int x, int y) {
         double[][] A = { { x0, x1, x2 }, { y0, y1, y2 }, { 1., 1., 1. } };
         double[][] b = { { x }, { y }, { 1. } };
-        double[][] coord = Matrix.multiply(Matrix.inverse(A), b);
+        double[][] coord = matrix_multiply(matrix_inverse(A), b);
         return coord[0][0]>=0 && coord[1][0]>=0 && coord[2][0]>=0;
     }
 
@@ -97,7 +141,6 @@ public class TinyRenderer extends JPanel {
             }
             for (int px=bbminx; px<=bbmaxx; px++) {
                 for (int py=bbminy; py<=bbmaxy; py++) {
-//                  if (px<0 || py<0 || px>=width || py>=height) continue;
                     if (!in_triangle(x[0], y[0], x[1], y[1], x[2], y[2], px, py)) continue;
                     framebuffer.setRGB(px, py, color);
                 }
