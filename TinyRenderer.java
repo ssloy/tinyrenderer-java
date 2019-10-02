@@ -15,9 +15,10 @@ public class TinyRenderer extends JPanel {
     public static final int width = 800;
     public static final int height = 800;
 
-    public static double vertices[] = null;         // Point cloud. The size equals to the number of vertices*3. E.g: in order to access to the y component of vertex index i, you should write vertices[i*3+1]
-    public static int triangles[] = null;           // Collection of triangles. The size equals to the number of triangles*3. Each triplet references indices in the vertices[] array.
+    public static double[] vertices = null;         // Point cloud. The size equals to the number of vertices*3. E.g: in order to access to the y component of vertex index i, you should write vertices[i*3+1]
+    public static int[] triangles = null;           // Collection of triangles. The size equals to the number of triangles*3. Each triplet references indices in the vertices[] array.
     public static BufferedImage framebuffer = null; // this image contains the rendered scene
+    public static double[][] zbuffer = null;        // z-buffer array
 
     // compute the matrix product A*B
     public static double[][] matrix_multiply(double[][] A, double[][] B) {
@@ -64,12 +65,11 @@ public class TinyRenderer extends JPanel {
         return inverse;
     }
 
-    // verify if the point (x,y) lies inside the triangle [(x0,y0), (x1,y1), (x2,y2)]
-    public static boolean in_triangle(int x0, int y0, int x1, int y1, int x2, int y2, int x, int y) {
+    // given a triangle [(x0,y0), (x1,y1), (x2,y2)], compute barycentric coordinates of the point (x,y) w.r.t the triangle
+    public static double[] barycentric_coords(int x0, int y0, int x1, int y1, int x2, int y2, int x, int y) {
         double[][] A = { { x0, x1, x2 }, { y0, y1, y2 }, { 1., 1., 1. } };
         double[][] b = { { x }, { y }, { 1. } };
-        double[][] coord = matrix_multiply(matrix_inverse(A), b);
-        return coord[0][0]>=0 && coord[1][0]>=0 && coord[2][0]>=0;
+        return matrix_transpose(matrix_multiply(matrix_inverse(A), b))[0];
     }
 
     public void paint(Graphics g) {
@@ -116,15 +116,23 @@ public class TinyRenderer extends JPanel {
         }
 
         framebuffer = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        zbuffer = new double[width][height]; // initialize the z-buffer
+        for (int i=0; i<width; i++) {
+            for (int j=0; j<height; j++) {
+                zbuffer[i][j] = -1;
+            }
+        }
         Random rand = new Random();
 
         for (int t=0; t<triangles.length/3; t++) { // iterate through all triangles
             int color = new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256)).getRGB();
             int[] x = new int[3]; // triangle in screen coordinates
             int[] y = new int[3];
+            double[] z = new double[3];
             for (int v=0; v<3; v++) {
                 double xw = vertices[triangles[t*3+v]*3+0]; // world coordinates
                 double yw = vertices[triangles[t*3+v]*3+1];
+                z[v]      = vertices[triangles[t*3+v]*3+2];
                 x[v] = (int)( width*(xw+1.)/2.+.5); // world-to-screen transformation
                 y[v] = (int)(height*(1.-yw)/2.+.5); // y is flipped to get a "natural" y orientation (origin in the bottom left corner)
             }
@@ -139,9 +147,13 @@ public class TinyRenderer extends JPanel {
                 bbmaxx = Math.min(width-1,  Math.max(bbmaxx, x[v]));
                 bbmaxy = Math.min(height-1, Math.max(bbmaxy, y[v]));
             }
-            for (int px=bbminx; px<=bbmaxx; px++) {
+            for (int px=bbminx; px<=bbmaxx; px++) { // rasterize the bounding box
                 for (int py=bbminy; py<=bbmaxy; py++) {
-                    if (!in_triangle(x[0], y[0], x[1], y[1], x[2], y[2], px, py)) continue;
+                    double[] coord = barycentric_coords(x[0], y[0], x[1], y[1], x[2], y[2], px, py);
+                    if (coord[0]<0 || coord[1]<0 || coord[2]<0) continue; // discard the point outside the triangle
+                    double pz = coord[0]*z[0] + coord[1]*z[1] + coord[2]*z[2]; // compute the depth of the fragment
+                    if (zbuffer[px][py]>pz) continue; // discard the fragment if it lies behind the z-buffer
+                    zbuffer[px][py] = pz;
                     framebuffer.setRGB(px, py, color);
                 }
             }
