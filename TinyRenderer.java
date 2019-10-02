@@ -4,11 +4,14 @@ import java.awt.Image;
 import java.awt.image.BufferedImage;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 import java.io.*;
 import javax.imageio.ImageIO;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+
+import geometry.Matrix;
 
 public class TinyRenderer extends JPanel {
     public static final int width = 800;
@@ -17,6 +20,13 @@ public class TinyRenderer extends JPanel {
     public static double vertices[] = null; // Point cloud. The size equals to the number of vertices*3. E.g: in order to access to the y component of vertex index i, you should write vertices[i*3+1]
     public static int triangles[] = null;   // Collection of triangles. The size equals to the number of triangles*3. Each triplet references indices in the vertices[] array.
 
+	public boolean in_triangle(int x0, int y0, int x1, int y1, int x2, int y2, int x, int y) {
+		double[][] A = { { x0, x1, x2 }, { y0, y1, y2 }, { 1., 1., 1. } };
+		double[][] b = { { x }, { y }, { 1. } };
+		double[][] coord = Matrix.multiply(Matrix.inverse(A), b);
+		return coord[0][0]>=0 && coord[1][0]>=0 && coord[2][0]>=0;
+	}
+	
     public void line(int x0, int y0, int x1, int y1, BufferedImage image, int color) {
         if (x0==x1 && y0==y1) return;
         boolean steep = false;
@@ -64,23 +74,39 @@ public class TinyRenderer extends JPanel {
         int blue  = new Color(  0,   0, 255).getRGB();
         int white = new Color(255, 255, 255).getRGB();
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-
+	Random rand = new Random();
+        
         for (int t=0; t<triangles.length/3; t++) { // iterate through all triangles
-            for (int e=0; e<3; e++) { // iterate through 3 edges
-                double x0 = vertices[triangles[t*3+e]*3+0];
-                double y0 = vertices[triangles[t*3+e]*3+1];
-                double x1 = vertices[triangles[t*3+(e+1)%3]*3+0];
-                double y1 = vertices[triangles[t*3+(e+1)%3]*3+1];
-                
-                // The points live in [-1,1]^3. 
-                // If we want to map an x from [-1,1] to [0,width], then (x+1)/2 belongs to in [0,1]. 
-                // And then width*(x+1)/2 lives in the [0,width] range. +.5 is added for rounding and not truncation.
-                int ix0 = (int)(width*(x0+1.)/2.+.5);
-                int ix1 = (int)(width*(x1+1.)/2.+.5);
-                int iy0 = (int)(height*(1.-y0)/2.+.5);
-                int iy1 = (int)(height*(1.-y1)/2.+.5);
-                line(ix0, iy0, ix1, iy1, image, green);
-            }
+		int color = new Color(rand.nextInt(256), rand.nextInt(256), rand.nextInt(256)).getRGB();
+			int[] x = new int[3];
+			int[] y = new int[3];
+			for (int v=0; v<3; v++) {
+                double xf = vertices[triangles[t*3+v]*3+0];
+                double yf = vertices[triangles[t*3+v]*3+1];
+                x[v] = (int)(width*(xf+1.)/2.+.5);
+                y[v] = (int)(height*(1.-yf)/2.+.5);
+			}
+
+			int bbminx = 10000;
+			int bbminy = 10000;
+			int bbmaxx = -10000;
+			int bbmaxy = -10000;
+			for (int v=0; v<3; v++) {
+				bbminx = Math.min(bbminx, x[v]);
+				bbminy = Math.min(bbminy, y[v]);
+				bbmaxx = Math.max(bbmaxx, x[v]);
+				bbmaxy = Math.max(bbmaxy, y[v]);
+			}
+			for (int px=bbminx; px<=bbmaxx; px++) {
+				for (int py=bbminy; py<=bbmaxy; py++) {
+					if (px<0 || py<0 || px>=width || py>=height) continue;
+					if (!in_triangle(x[0], y[0], x[1], y[1], x[2], y[2], px, py)) continue;
+					image.setRGB(px, py, color);
+				}
+			}
+			for (int e=0; e<3; e++) {
+				line(x[e], y[e], x[(e+1)%3], y[(e+1)%3], image, green);
+			}
         }
 
         try {
